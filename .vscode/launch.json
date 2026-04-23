@@ -1,0 +1,28 @@
+{
+    "version": "0.2.0",
+    "configurations": [
+        {
+            "name": "Debug (OpenOCD)",
+            "type": "cortex-debug",
+            "request": "launch",
+            "servertype": "openocd",
+            "cwd": "${workspaceFolder}",
+            "executable": "${workspaceFolder}/build/Debug/firess.elf",
+            "device": "STM32L053R8",
+            "configFiles": [
+                "${workspaceFolder}/openocd_custom.cfg"
+            ],
+            "svdFile": "",
+            "armToolchainPath": "/opt/gcc-arm-none-eabi-10-2020-q4-major/bin",
+            "showDevDebugOutput": "none",
+            "overrideLaunchCommands": [
+                "-enable-pretty-printing",
+                "monitor reset halt",
+                "monitor program /home/talha/Documents/firess/build/Debug/firess.elf verify",
+                "monitor reset halt",
+                "thbreak main",
+                "continue"
+            ]
+        }
+    ]
+}
