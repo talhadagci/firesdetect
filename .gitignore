@@ -1,4 +1,4 @@
 build
 mx.scratch
 !.settings
-.claude
+.claudedashboard/venv/

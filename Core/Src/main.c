@@ -187,15 +187,27 @@ int main(void)
 
   while (1)
   {
-    HAL_ADC_Start(&hadc);
+    ADC_ChannelConfTypeDef adc_ch = {0};
 
+    adc_ch.Channel = ADC_CHANNEL_8;
+    adc_ch.Rank = ADC_RANK_NONE;
+    HAL_ADC_ConfigChannel(&hadc, &adc_ch);
+    HAL_ADC_Start(&hadc);
     HAL_ADC_PollForConversion(&hadc, 100);
     uint32_t mq2Val = HAL_ADC_GetValue(&hadc);
+    HAL_ADC_Stop(&hadc);
+    adc_ch.Rank = ADC_RANK_CHANNEL_NUMBER;
+    HAL_ADC_ConfigChannel(&hadc, &adc_ch);
 
+    adc_ch.Channel = ADC_CHANNEL_0;
+    adc_ch.Rank = ADC_RANK_NONE;
+    HAL_ADC_ConfigChannel(&hadc, &adc_ch);
+    HAL_ADC_Start(&hadc);
     HAL_ADC_PollForConversion(&hadc, 100);
     uint32_t flameVal = HAL_ADC_GetValue(&hadc);
-
     HAL_ADC_Stop(&hadc);
+    adc_ch.Rank = ADC_RANK_CHANNEL_NUMBER;
+    HAL_ADC_ConfigChannel(&hadc, &adc_ch);
 
     float temperature = 0.0f, humidity = 0.0f;
     uint8_t dhtOk = DHT22_Read(&temperature, &humidity);
@@ -216,8 +228,8 @@ int main(void)
 
     HAL_UART_Transmit(&huart2, (uint8_t *)buf, len, 100);
 
-    uint8_t mq2Alarm   = (mq2Val > 700);
-    uint8_t flameAlarm = (flameVal > 650);
+    uint8_t mq2Alarm   = (mq2Val > 1500);
+    uint8_t flameAlarm = (flameVal < 500);
     uint8_t tempAlarm  = 0;
 
     if (dhtOk)
@@ -252,7 +264,7 @@ int main(void)
       HAL_UART_Transmit(&huart2, (uint8_t *)"[YANGIN] TAHLIYE! TAHLIYE! TAHLIYE!\r\n", 37, 100);
     }
 
-    HAL_Delay(2000);
+    HAL_Delay(100);
     /* USER CODE END WHILE */
 
     /* USER CODE BEGIN 3 */

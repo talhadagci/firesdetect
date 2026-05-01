@@ -1,0 +1,138 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Fire Prediction (ML) - Forest Fire Risk</title>
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&display=swap" rel="stylesheet">
+    <link rel="stylesheet" href="{{ url_for('static', filename='style.css') }}">
+    <link rel="stylesheet" href="{{ url_for('static', filename='prediction.css') }}">
+</head>
+<body>
+    <header class="main-header" style="display: flex; align-items: center; justify-content: space-between; padding: 1.5rem 2rem; border-bottom: 1px solid var(--border-color); background: rgba(15, 23, 42, 0.8); backdrop-filter: blur(10px); position: sticky; top: 0; z-index: 10001;">
+        <div class="logo">🔥</div>
+        <h1>Fire Prediction (ML)</h1>
+        <nav class="nav-links">
+            <a href="/" class="nav-link" style="color: var(--text-secondary); text-decoration: none; font-weight: 600; margin-right: 1.5rem;">Dashboard</a>
+            <a href="/prediction" class="nav-link active" style="color: var(--accent-blue); text-decoration: none; font-weight: 700;">Fire Prediction (ML)</a>
+        </nav>
+    </header>
+
+    <div class="dashboard-container">
+        <main>
+            <div class="prediction-grid">
+                <!-- LEFT: Input Form -->
+                <div class="card form-card">
+                    <h2 class="card-title">🌲 Forest Fire Risk Parameters</h2>
+                    <p class="form-desc">Meteorolojik değerleri girerek orman yangını riskini tahmin edin (Random Forest ML).</p>
+
+                    <div class="form-group">
+                        <label for="inp-temp">🌡️ Temperature (°C)</label>
+                        <input type="number" id="inp-temp" value="25" step="0.1">
+                    </div>
+
+                    <div class="form-group">
+                        <label for="inp-hum">💧 Humidity (%RH)</label>
+                        <input type="number" id="inp-hum" value="50">
+                    </div>
+
+                    <div class="form-group">
+                        <label for="inp-wind">💨 Wind Speed (km/h)</label>
+                        <input type="number" id="inp-wind" value="3.5" step="0.1">
+                    </div>
+
+                    <div class="form-group">
+                        <label for="inp-rain">🌧️ Rain (mm)</label>
+                        <input type="number" id="inp-rain" value="0" step="0.1">
+                    </div>
+
+                    <button id="predict-btn" class="predict-btn" onclick="predictFire()">
+                        <span>🔮</span> Predict Fire Risk
+                    </button>
+                </div>
+
+                <!-- RIGHT: Result -->
+                <div class="card result-card" id="result-card">
+                    <h2 class="card-title">📊 Prediction Result</h2>
+                    <div class="result-content" id="result-content">
+                        <div class="result-placeholder">
+                            <span>🔮</span>
+                            <p>Parametreleri girin ve tahmin butonuna basın</p>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Model Info -->
+            <div class="card info-card">
+                <h2 class="card-title">ℹ️ Model Bilgileri</h2>
+                <div class="info-grid">
+                    <div class="info-item">
+                        <span class="info-label">Algoritma</span>
+                        <span class="info-value">Random Forest Classifier</span>
+                    </div>
+                    <div class="info-item">
+                        <span class="info-label">Dataset</span>
+                        <span class="info-value">forestfires.csv</span>
+                    </div>
+                    <div class="info-item">
+                        <span class="info-label">Accuracy</span>
+                        <span class="info-value" id="model-accuracy">--</span>
+                    </div>
+                </div>
+            </div>
+        </main>
+    </div>
+
+    <script>
+    function predictFire() {
+        const btn = document.getElementById('predict-btn');
+        const originalContent = btn.innerHTML;
+        btn.innerHTML = '<span>⏳</span> Hesaplanıyor...';
+        btn.disabled = true;
+
+        const payload = {
+            temperature: parseFloat(document.getElementById('inp-temp').value),
+            humidity: parseFloat(document.getElementById('inp-hum').value),
+            wind: parseFloat(document.getElementById('inp-wind').value),
+            rain: parseFloat(document.getElementById('inp-rain').value)
+        };
+
+        fetch('/predict', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify(payload)
+        })
+        .then(r => r.json())
+        .then(data => {
+            btn.innerHTML = originalContent;
+            btn.disabled = false;
+
+            if (data.error) {
+                alert(data.error);
+                return;
+            }
+
+            const pct = Math.round(data.fire_probability * 100);
+            let color = '#10b981';
+            if (data.risk_level === 'MEDIUM') color = '#eab308';
+            else if (data.risk_level === 'HIGH') color = '#ef4444';
+
+            document.getElementById('result-content').innerHTML = `
+                <div class="result-circle" style="background: conic-gradient(${color} ${pct}%, rgba(255,255,255,0.05) 0%);">
+                    <span style="color: ${color};">${pct}%</span>
+                </div>
+                <div class="result-label" style="color: ${color};">${data.risk_level} RISK</div>
+                <p class="result-desc">Olasılık: <strong>${(data.fire_probability * 100).toFixed(1)}%</strong></p>
+            `;
+            document.getElementById('model-accuracy').textContent = (data.model_accuracy * 100).toFixed(1) + '%';
+        })
+        .catch(err => {
+            btn.innerHTML = originalContent;
+            btn.disabled = false;
+            console.error(err);
+        });
+    }
+    </script>
+</body>
+</html>
