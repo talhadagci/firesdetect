@@ -2,6 +2,25 @@
     "version": "0.2.0",
     "configurations": [
         {
+            "cwd": "${workspaceRoot}",
+            "executable": "./bin/executable.elf",
+            "name": "Debug with OpenOCD",
+            "request": "launch",
+            "type": "cortex-debug",
+            "servertype": "openocd",
+            "configFiles": [],
+            "searchDir": [],
+            "runToEntryPoint": "main",
+            "showDevDebugOutput": "none"
+        },
+        {
+            "name": "Python Debugger: Current File",
+            "type": "debugpy",
+            "request": "launch",
+            "program": "${file}",
+            "console": "integratedTerminal"
+        },
+        {
             "name": "Debug (OpenOCD)",
             "type": "cortex-debug",
             "request": "launch",

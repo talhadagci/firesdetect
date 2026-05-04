@@ -60,6 +60,42 @@ static void MX_ADC_Init(void);
 /* Private user code ---------------------------------------------------------*/
 /* USER CODE BEGIN 0 */
 
+static uint32_t read_adc(uint32_t chselr_mask)
+{
+    /* 0. ADC'nin aktif olduğundan emin ol (kilitlenmeyi önler) */
+    if (!(ADC1->CR & ADC_CR_ADEN)) {
+        ADC1->CR |= ADC_CR_ADEN;
+        while (!(ADC1->ISR & ADC_ISR_ADRDY));
+    }
+
+    /* 1. Devam eden herhangi bir dönüşümü durdur */
+    if (ADC1->CR & ADC_CR_ADSTART)
+    {
+        ADC1->CR |= ADC_CR_ADSTP;
+        while (ADC1->CR & ADC_CR_ADSTP);
+    }
+
+    /* 2. Kanal seçimini temizle ve yenisini ata */
+    ADC1->CHSELR = 0;
+    for(volatile int i=0; i<50; i++);
+    ADC1->CHSELR = chselr_mask;
+
+    /* 3. Stabilizasyon beklemesi */
+    for(volatile int i=0; i<100; i++);
+
+    /* 4. DUMMY READ: Önceki kalıntıları temizle */
+    ADC1->ISR |= ADC_ISR_EOC; // Bayrağı temizle
+    ADC1->CR |= ADC_CR_ADSTART;
+    while (!(ADC1->ISR & ADC_ISR_EOC));
+    (void)ADC1->DR;
+
+    /* 5. GERÇEK OKUMA */
+    ADC1->CR |= ADC_CR_ADSTART;
+    while (!(ADC1->ISR & ADC_ISR_EOC));
+
+    return ADC1->DR;
+}
+
 static void delay_us(uint32_t us)
 {
     uint32_t clk = us * (SystemCoreClock / 1000000U);
@@ -177,7 +213,9 @@ int main(void)
   MX_USART2_UART_Init();
   MX_ADC_Init();
   /* USER CODE BEGIN 2 */
-
+  HAL_ADCEx_Calibration_Start(&hadc, ADC_SINGLE_ENDED);
+  ADC1->CR |= ADC_CR_ADEN;
+  while (!(ADC1->ISR & ADC_ISR_ADRDY));
   /* USER CODE END 2 */
 
   /* Infinite loop */
@@ -187,27 +225,17 @@ int main(void)
 
   while (1)
   {
-    ADC_ChannelConfTypeDef adc_ch = {0};
+    uint32_t mq2Val   = read_adc(1U << 0); /* PA0 -> ADC_IN0 -> MQ2  */
+    uint32_t chselr_mq2 = ADC1->CHSELR;
+    uint32_t flameVal = read_adc(1U << 8); /* PB0 -> ADC_IN8 -> Flame */
+    uint32_t chselr_flame = ADC1->CHSELR;
 
-    adc_ch.Channel = ADC_CHANNEL_8;
-    adc_ch.Rank = ADC_RANK_NONE;
-    HAL_ADC_ConfigChannel(&hadc, &adc_ch);
-    HAL_ADC_Start(&hadc);
-    HAL_ADC_PollForConversion(&hadc, 100);
-    uint32_t mq2Val = HAL_ADC_GetValue(&hadc);
-    HAL_ADC_Stop(&hadc);
-    adc_ch.Rank = ADC_RANK_CHANNEL_NUMBER;
-    HAL_ADC_ConfigChannel(&hadc, &adc_ch);
-
-    adc_ch.Channel = ADC_CHANNEL_0;
-    adc_ch.Rank = ADC_RANK_NONE;
-    HAL_ADC_ConfigChannel(&hadc, &adc_ch);
-    HAL_ADC_Start(&hadc);
-    HAL_ADC_PollForConversion(&hadc, 100);
-    uint32_t flameVal = HAL_ADC_GetValue(&hadc);
-    HAL_ADC_Stop(&hadc);
-    adc_ch.Rank = ADC_RANK_CHANNEL_NUMBER;
-    HAL_ADC_ConfigChannel(&hadc, &adc_ch);
+    {
+        char dbg[64];
+        int dlen = snprintf(dbg, sizeof(dbg), "[DBG] CHSELR_MQ2=0x%lX CHSELR_FL=0x%lX\r\n",
+                            chselr_mq2, chselr_flame);
+        HAL_UART_Transmit(&huart2, (uint8_t *)dbg, dlen, 100);
+    }
 
     float temperature = 0.0f, humidity = 0.0f;
     uint8_t dhtOk = DHT22_Read(&temperature, &humidity);
@@ -229,7 +257,7 @@ int main(void)
     HAL_UART_Transmit(&huart2, (uint8_t *)buf, len, 100);
 
     uint8_t mq2Alarm   = (mq2Val > 1500);
-    uint8_t flameAlarm = (flameVal < 500);
+    uint8_t flameAlarm = (flameVal < 2000);
     uint8_t tempAlarm  = 0;
 
     if (dhtOk)
@@ -343,10 +371,10 @@ static void MX_ADC_Init(void)
   hadc.Init.OversamplingMode = DISABLE;
   hadc.Init.ClockPrescaler = ADC_CLOCK_SYNC_PCLK_DIV1;
   hadc.Init.Resolution = ADC_RESOLUTION_12B;
-  hadc.Init.SamplingTime = ADC_SAMPLETIME_1CYCLE_5;
+  hadc.Init.SamplingTime = ADC_SAMPLETIME_3CYCLES_5;
   hadc.Init.ScanConvMode = ADC_SCAN_DIRECTION_FORWARD;
   hadc.Init.DataAlign = ADC_DATAALIGN_RIGHT;
-  hadc.Init.ContinuousConvMode = DISABLE;
+  hadc.Init.ContinuousConvMode = ENABLE;
   hadc.Init.DiscontinuousConvMode = DISABLE;
   hadc.Init.ExternalTrigConvEdge = ADC_EXTERNALTRIGCONVEDGE_NONE;
   hadc.Init.ExternalTrigConv = ADC_SOFTWARE_START;

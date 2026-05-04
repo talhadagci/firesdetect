@@ -26,9 +26,9 @@ TEMP_THRESHOLD = 25.0
 GAS_THRESHOLD = 620
 
 # Alev (Flame IR ADC): Aktif-low sensör.
-# Sensörün normal (ateşsiz) değeri ~564 civarı.
-# 400 altı = gerçek alev algılandı demektir.
-FLAME_THRESHOLD = 400
+# Sensörün normal (ateşsiz) değeri ~3900 civarı (12-bit ADC, ~3.14V).
+# 2000 altına düşerse alev algılandı demektir.
+FLAME_THRESHOLD = 2000
 
 # Ani sıcaklık artışı eşiği (°C / okuma başına)
 TEMP_SPIKE_THRESHOLD = 2.0
